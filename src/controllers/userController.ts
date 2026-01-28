@@ -1,5 +1,10 @@
 import { Response, NextFunction } from 'express';
-import User from '../models/User';
+import {
+    fetchAllUsers,
+    fetchUserById,
+    modifyUser,
+    removeUser,
+} from '../services/userService';
 import { AuthRequest, ApiResponse } from '../types';
 
 export const getAllUsers = async (
@@ -8,7 +13,7 @@ export const getAllUsers = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const users = await User.find().select('-__v');
+        const users = await fetchAllUsers();
 
         res.status(200).json({
             success: true,
@@ -28,7 +33,7 @@ export const getUserById = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const user = await User.findById(req.params.id).select('-__v');
+        const user = await fetchUserById(req.params.id);
 
         if (!user) {
             res.status(404).json({
@@ -59,14 +64,7 @@ export const updateUser = async (
         if (name) updateData.name = name;
         if (email) updateData.email = email;
 
-        const user = await User.findByIdAndUpdate(
-            req.params.id,
-            updateData,
-            {
-                new: true,
-                runValidators: true,
-            }
-        ).select('-__v');
+        const user = await modifyUser(req.params.id, updateData);
 
         if (!user) {
             res.status(404).json({
@@ -92,7 +90,7 @@ export const deleteUser = async (
     next: NextFunction
 ): Promise<void> => {
     try {
-        const user = await User.findByIdAndDelete(req.params.id);
+        const user = await removeUser(req.params.id);
 
         if (!user) {
             res.status(404).json({

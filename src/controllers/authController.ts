@@ -1,6 +1,5 @@
 import { Response, NextFunction } from 'express';
-import User from '../models/User';
-import { generateToken } from '../utils/jwt';
+import { registerUser, loginUser } from '../services/authService';
 import { AuthRequest, ApiResponse } from '../types';
 
 export const register = async (
@@ -11,22 +10,7 @@ export const register = async (
     try {
         const { name, email, password } = req.body;
 
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            res.status(400).json({
-                success: false,
-                error: 'User with this email already exists',
-            });
-            return;
-        }
-
-        const user = await User.create({
-            name,
-            email,
-            password,
-        });
-
-        const token = generateToken(user._id.toString());
+        const { user, token } = await registerUser(name, email, password);
 
         res.status(201).json({
             success: true,
@@ -40,7 +24,14 @@ export const register = async (
                 token,
             },
         });
-    } catch (error) {
+    } catch (error: any) {
+        if (error.message === 'User with this email already exists') {
+            res.status(400).json({
+                success: false,
+                error: error.message,
+            });
+            return;
+        }
         next(error);
     }
 };
@@ -61,27 +52,7 @@ export const login = async (
             return;
         }
 
-        const user = await User.findOne({ email }).select('+password');
-
-        if (!user) {
-            res.status(401).json({
-                success: false,
-                error: 'Invalid credentials',
-            });
-            return;
-        }
-
-        const isMatch = await user.comparePassword(password);
-
-        if (!isMatch) {
-            res.status(401).json({
-                success: false,
-                error: 'Invalid credentials',
-            });
-            return;
-        }
-
-        const token = generateToken(user._id.toString());
+        const { user, token } = await loginUser(email, password);
 
         res.status(200).json({
             success: true,
@@ -95,7 +66,14 @@ export const login = async (
                 token,
             },
         });
-    } catch (error) {
+    } catch (error: any) {
+        if (error.message === 'Invalid credentials') {
+            res.status(401).json({
+                success: false,
+                error: error.message,
+            });
+            return;
+        }
         next(error);
     }
 };
